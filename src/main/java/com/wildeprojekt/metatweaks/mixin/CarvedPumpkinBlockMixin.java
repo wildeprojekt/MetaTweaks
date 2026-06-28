@@ -1,0 +1,35 @@
+package com.wildeprojekt.metatweaks.mixin;
+
+import net.minecraft.block.CarvedPumpkinBlock;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+/**
+ * Blocks the construction/spawning of Snow and Iron Golems via carved pumpkin patterns.
+ * Plays a horn sound as feedback and cancels the spawn action on the server side.
+ */
+@Mixin(CarvedPumpkinBlock.class)
+public class CarvedPumpkinBlockMixin {
+
+    @Inject(method = "trySpawnEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/block/CarvedPumpkinBlock;spawnEntity(Lnet/minecraft/world/World;Lnet/minecraft/block/pattern/BlockPattern$Result;Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/BlockPos;)V", ordinal = 0), cancellable = true)
+    public void noSpawnSnowGolem(World world, BlockPos pos, CallbackInfo ci) {
+        if(!world.isClient) {
+            world.playSound(null, pos, SoundEvents.GOAT_HORN_SOUNDS.get(1).value(), SoundCategory.RECORDS, 1f, 1f);
+        }
+        ci.cancel();
+    }
+
+    @Inject(method = "trySpawnEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/block/CarvedPumpkinBlock;spawnEntity(Lnet/minecraft/world/World;Lnet/minecraft/block/pattern/BlockPattern$Result;Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/BlockPos;)V", ordinal = 1), cancellable = true)
+    public void noSpawnIronGolem(World world, BlockPos pos, CallbackInfo ci) {
+        if(!world.isClient) {
+            world.playSound(null, pos, SoundEvents.GOAT_HORN_SOUNDS.get(1).value(), SoundCategory.RECORDS, 1f, 1f);
+        }
+        ci.cancel();
+    }
+}

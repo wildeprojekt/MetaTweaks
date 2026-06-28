@@ -1,0 +1,42 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.wildeprojekt.metatweaks.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "AbstractBlockMixin",
+    "CarvedPumpkinBlockMixin",
+    "ChickenMixin",
+    "ConcretePowderBlockMixin",
+    "CreateFilteringBehaviourMixin",
+    "CropGrowthMixin",
+    "EggEntityMixin",
+    "EndCrystalMixin",
+    "EnderPearlEntityMixin",
+    "EntityBucketItemMixin",
+    "EntityMixin",
+    "FallingBlockMixin",
+    "FarmlandBlockMixin",
+    "FluidSpreadMixin",
+    "FrogSpawnMixin",
+    "GrassSpreadMixin",
+    "HeightMapMixin",
+    "ItemFrameEntityMixin",
+    "LeavesBlockMixin",
+    "LilyPadBlockMixin",
+    "LivingEntityMixin",
+    "MobEntityMixin",
+    "ProjectileEntityMixin",
+    "RespawnAnchorMixin",
+    "SaplingGrowthMixin",
+    "ServerPlayerEntity",
+    "SpreadableBlockMixin",
+    "TNTMinecartMixin",
+    "WaterFreezeMixin"
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,25 +1,25 @@
 {
   "schemaVersion": 1,
-  "id": "ardastuff",
+  "id": "metatweaks",
   "version": "${version}",
-  "name": "ArdaStuff",
+  "name": "MetaTweaks",
   "description": "Tweaks and utilities for ArdaCraft",
   "authors": [
     "JayemCeekay"
   ],
   "contact": {},
   "license": "MIT",
-  "icon": "assets/ardastuff/icon.png",
+  "icon": "assets/metatweaks.png",
   "environment": "server",
   "entrypoints": {
     "main": [
-      "com.ardacraft.ardastuff.ArdaStuff"
+      "com.wildeprojekt.metatweaks.MetaTweaks"
     ]
   },
   "mixins": [
-    "ardastuff.mixins.json"
+    "metatweaks.mixins.json"
   ],
-  "accessWidener": "ardastuff.accesswidener",
+  "accessWidener": "metatweaks.accesswidener",
   "depends": {
     "fabricloader": ">=0.14.17",
     "fabric": "*",
