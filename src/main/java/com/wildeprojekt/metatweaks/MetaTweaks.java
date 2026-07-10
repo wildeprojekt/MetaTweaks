@@ -35,9 +35,10 @@ import java.util.HashSet;
  * <p>
  * Permissions used (LuckPerms):
  * - metatweaks.candie: Players with this can take damage; otherwise damage is denied for players.
- * - metatweaks.create: Allows basic interaction/breaking of Create mod blocks.
- * - metatweaks.createall: Allows all Create mod blocks; otherwise restricted to a whitelist.
- * - metatweaks.protection: General protection bypass for interactions/placements.
+ * - metatweaks.bypass: Bypass global block/item blacklist for place, break, and use.
+ * - metatweaks.createconfig: Edit Create block-entity configs (see CreateFilteringBehaviourMixin).
+ * - metatweaks.protection: Context-dependent build permission. In plot worlds: break blocks and entity use;
+ *   does not bypass plot placement rules. In project worlds (no PlotArea): full build access.
  */
 public class MetaTweaks implements ModInitializer {
 
@@ -46,38 +47,15 @@ public class MetaTweaks implements ModInitializer {
     public static HashSet<ServerPlayerEntity> waterSpreaders;
     public static boolean eventBypass = false;
 
-    public ArrayList<Identifier> allowedCreateBlocks;
-
     /**
-     * Fabric mod initialization hook. Sets up static state, allowed Create block whitelist,
+     * Fabric mod initialization hook. Sets up static state, block blacklist,
      * registers Stimuli listeners, command handlers, and protection logic.
      */
     @Override
     public void onInitialize() {
         waterSpreaders = new HashSet<>();
         paintingBreakers = new ArrayList<>();
-
-        //initialize create block whitelist
-        allowedCreateBlocks = new ArrayList<>();
-        allowedCreateBlocks.add(new Identifier("create:warped_window_pane"));
-        allowedCreateBlocks.add(new Identifier("create:crimson_window_pane"));
-        allowedCreateBlocks.add(new Identifier("create:brown_valve_handle"));
-        allowedCreateBlocks.add(new Identifier("create:turntable"));
-        allowedCreateBlocks.add(new Identifier("create:black_seat"));
-        allowedCreateBlocks.add(new Identifier("create:white_seat"));
-        allowedCreateBlocks.add(new Identifier("create:rose_quartz_tiles"));
-        allowedCreateBlocks.add(new Identifier("create:brass_block"));
-        allowedCreateBlocks.add(new Identifier("create:small_rose_quartz_tiles"));
-        allowedCreateBlocks.add(new Identifier("create:chute"));
-        allowedCreateBlocks.add(new Identifier("create:framed_glass_trapdoor"));
-        allowedCreateBlocks.add(new Identifier("create:schematic_table"));
-        allowedCreateBlocks.add(new Identifier("create:train_door"));
-        allowedCreateBlocks.add(new Identifier("create:yellow_valve_handle"));
-        allowedCreateBlocks.add(new Identifier("create:red_valve_handle"));
-        allowedCreateBlocks.add(new Identifier("create:gray_valve_handle"));
-        allowedCreateBlocks.add(new Identifier("create:schematicannon"));
-
-
+        BlockBlacklist.load();
         /*
          * Projectile entity hit handling.
          * - Default: deny projectile collisions with entities (returns FAIL) to prevent grief (e.g., arrows breaking frames).
@@ -176,24 +154,13 @@ public class MetaTweaks implements ModInitializer {
         });
 
         /*
-         * Block break: Create mod block whitelist + permissions.
-         * - If the block is from the Create namespace, player must have metatweaks.create.
-         * - If metatweaks.createall is absent, only blocks on allowedCreateBlocks are permitted.
+         * Block break: global block blacklist. Blacklisted blocks require metatweaks.bypass.
          */
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             if (player instanceof ServerPlayerEntity serverPlayer) {
-                if (Registries.BLOCK.getId(state.getBlock()).getNamespace().equalsIgnoreCase("create")) {
-                    if (!hasPermission(serverPlayer, "metatweaks.create")) {
-                        return false;
-                    } else if (!hasPermission(serverPlayer, "metatweaks.createall")) {
-                        if (!allowedCreateBlocks.contains(Registries.BLOCK.getId(state.getBlock()))) {
-                            return false;
-                        } else {
-                            return true;
-                        }
-                    } else {
-                        return true;
-                    }
+                Identifier blockId = Registries.BLOCK.getId(state.getBlock());
+                if (!BlockBlacklist.isBlockInteractionAllowed(serverPlayer, blockId)) {
+                    return false;
                 }
             }
             return true;
@@ -214,9 +181,7 @@ public class MetaTweaks implements ModInitializer {
         /*
          * Use block callback (right-click on blocks):
          * - Proactively denies usage of certain grief-prone items (spawn eggs, buckets, boats, tridents, F&S, etc.) and logs usage attempts.
-         * - Requires metatweaks.protection to proceed with most interactions.
-         * - Extra Create item gating: requires metatweaks.create and optionally metatweaks.createall or whitelist match.
-         * - Finally, applies isBlockProtectedAgainstUseAction (doors/gates allowed with empty hand; otherwise permission required).
+         * - Blacklisted blocks/items require metatweaks.bypass before plot checks apply.
          */
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
 
@@ -266,21 +231,14 @@ public class MetaTweaks implements ModInitializer {
                 return ActionResult.FAIL;
             }
 
-            if (Registries.ITEM.getId(player.getStackInHand(hand).getItem()).toString().startsWith("create:")) {
-                if (player instanceof ServerPlayerEntity serverPlayer) {
-                    try {
-                        if (hasPermission(serverPlayer, "metatweaks.protection")) {
-                            if (!hasPermission(serverPlayer, "metatweaks.create")) {
-                                return ActionResult.FAIL;
-                            } else if (!hasPermission(serverPlayer, "metatweaks.createall")) {
-                                if (!allowedCreateBlocks.contains(Registries.ITEM.getId(serverPlayer.getStackInHand(hand).getItem()))) {
-                                    return ActionResult.FAIL;
-                                }
-                            }
-                        }
-                    } catch (IllegalStateException e) {
-                        e.printStackTrace();
-                    }
+            if (player instanceof ServerPlayerEntity serverPlayer) {
+                Identifier itemId = Registries.ITEM.getId(player.getStackInHand(hand).getItem());
+                if (!BlockBlacklist.isItemUseAllowed(serverPlayer, itemId)) {
+                    return ActionResult.FAIL;
+                }
+                Identifier blockId = Registries.BLOCK.getId(world.getBlockState(hitResult.getBlockPos()).getBlock());
+                if (!BlockBlacklist.isBlockInteractionAllowed(serverPlayer, blockId)) {
+                    return ActionResult.FAIL;
                 }
             }
 
@@ -300,8 +258,7 @@ public class MetaTweaks implements ModInitializer {
         /*
          * Use entity callback (right-click on entities):
          * - Denies use of grief-prone items and logs attempts, similar to block use.
-         * - Requires metatweaks.protection; adds Create item gating logic when interacting via Create items.
-         * - If permitted, returns PASS to allow vanilla/other handlers to proceed; otherwise FAIL to block.
+         * - Requires metatweaks.protection for entity use; blacklisted items require metatweaks.bypass.
          */
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
 
@@ -354,46 +311,21 @@ public class MetaTweaks implements ModInitializer {
                 return ActionResult.FAIL;
             }
 
-            if (Registries.ITEM.getId(player.getStackInHand(hand).getItem()).toString().startsWith("create:")) {
-                if (player instanceof ServerPlayerEntity serverPlayer) {
-                    try {
-                        if (hasPermission(serverPlayer, "metatweaks.protection")) {
-                            if (!hasPermission(serverPlayer, "metatweaks.create")) {
-                                return ActionResult.FAIL;
-                            } else if (!hasPermission(serverPlayer, "metatweaks.createall")) {
-                                if (!allowedCreateBlocks.contains(Registries.ITEM.getId(serverPlayer.getStackInHand(hand).getItem()))) {
-                                    return ActionResult.FAIL;
-                                } else {
-                                    return ActionResult.PASS;
-                                }
-                            } else {
-                                return ActionResult.PASS;
-                            }
-                        }
-                    } catch (IllegalStateException e) {
-                        e.printStackTrace();
-                    }
+            if (player instanceof ServerPlayerEntity serverPlayer) {
+                Identifier itemId = Registries.ITEM.getId(player.getStackInHand(hand).getItem());
+                if (!BlockBlacklist.isItemUseAllowed(serverPlayer, itemId)) {
+                    return ActionResult.FAIL;
                 }
             }
 
-            if (player instanceof ServerPlayerEntity serverPlayer) {
-                try {
-                    if (hasPermission(serverPlayer, "metatweaks.protection")) {
-                        return ActionResult.PASS;
-                    }
-                } catch (IllegalStateException e) {
-                    e.printStackTrace();
-                }
-            }
-            return ActionResult.FAIL;
+            return ActionResult.PASS;
         });
 
         /*
          * Use item callback (right-click in air):
          * - Allows Patchouli guide books to be opened normally.
          * - Denies various grief-prone items (spawn eggs, buckets, boats, tridents, F&S, throwable potions, etc.).
-         * - If metatweaks.protection is missing, generally yields PASS to let other handlers potentially ignore/handle.
-         * - Create items: same permission/whitelist gating as block/entity use.
+         * - Blacklisted items require metatweaks.bypass before plot checks apply.
          */
         UseItemCallback.EVENT.register((player, world, hand) -> {
 
@@ -449,21 +381,10 @@ public class MetaTweaks implements ModInitializer {
                 return TypedActionResult.fail(ItemStack.EMPTY);
             }
 
-            if (Registries.ITEM.getId(player.getStackInHand(hand).getItem()).toString().startsWith("create:")) {
-                if (player instanceof ServerPlayerEntity serverPlayer) {
-                    try {
-                        if (hasPermission(serverPlayer, "metatweaks.protection")) {
-                            if (!hasPermission(serverPlayer, "metatweaks.create")) {
-                                return TypedActionResult.fail(ItemStack.EMPTY);
-                            } else if (!hasPermission(serverPlayer, "metatweaks.createall")) {
-                                if (!allowedCreateBlocks.contains(Registries.ITEM.getId(serverPlayer.getStackInHand(hand).getItem()))) {
-                                    return TypedActionResult.fail(ItemStack.EMPTY);
-                                }
-                            }
-                        }
-                    } catch (IllegalStateException e) {
-                        e.printStackTrace();
-                    }
+            if (player instanceof ServerPlayerEntity serverPlayer) {
+                Identifier itemId = Registries.ITEM.getId(player.getStackInHand(hand).getItem());
+                if (!BlockBlacklist.isItemUseAllowed(serverPlayer, itemId)) {
+                    return TypedActionResult.fail(ItemStack.EMPTY);
                 }
             }
 
