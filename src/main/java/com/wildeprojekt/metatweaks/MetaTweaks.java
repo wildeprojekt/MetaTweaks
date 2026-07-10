@@ -24,22 +24,6 @@ import xyz.nucleoid.stimuli.event.world.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-/**
- * Main entry point for the MetaTweaks Fabric mod.
- * <p>
- * Responsibilities:
- * - Registers Stimuli world/entity event listeners to hard-disable a number of grief-prone mechanics (fire tick, TNT ignite, ice melt, wither summon, snow fall, projectile interactions with frames/paintings when bypass is enabled, etc.).
- * - Registers commands via {@link MetaTweaksCommandHandler} on dedicated servers.
- * - Provides simple permission integration via LuckPerms to gate interactions and item/block usage.
- * - Maintains shared state (e.g., water spread toggles and painting breakers list).
- * <p>
- * Permissions used (LuckPerms):
- * - metatweaks.candie: Players with this can take damage; otherwise damage is denied for players.
- * - metatweaks.bypass: Bypass global block/item blacklist for place, break, and use.
- * - metatweaks.createconfig: Edit Create block-entity configs (see CreateFilteringBehaviourMixin).
- * - metatweaks.protection: Context-dependent build permission. In plot worlds: break blocks and entity use;
- *   does not bypass plot placement rules. In project worlds (no PlotArea): full build access.
- */
 public class MetaTweaks implements ModInitializer {
 
     public static ArrayList<ServerPlayerEntity> paintingBreakers;
@@ -48,14 +32,15 @@ public class MetaTweaks implements ModInitializer {
     public static boolean eventBypass = false;
 
     /**
-     * Fabric mod initialization hook. Sets up static state, block blacklist,
+     * Fabric mod initialization hook. Sets up static state, interaction rules config,
      * registers Stimuli listeners, command handlers, and protection logic.
      */
     @Override
     public void onInitialize() {
         waterSpreaders = new HashSet<>();
         paintingBreakers = new ArrayList<>();
-        BlockBlacklist.load();
+        InteractionGuard.load();
+        RestrictedItemEnforcer.register();
         /*
          * Projectile entity hit handling.
          * - Default: deny projectile collisions with entities (returns FAIL) to prevent grief (e.g., arrows breaking frames).
@@ -159,7 +144,7 @@ public class MetaTweaks implements ModInitializer {
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             if (player instanceof ServerPlayerEntity serverPlayer) {
                 Identifier blockId = Registries.BLOCK.getId(state.getBlock());
-                if (!BlockBlacklist.isBlockInteractionAllowed(serverPlayer, blockId)) {
+                if (!InteractionGuard.canInteractBlock(serverPlayer, blockId)) {
                     return false;
                 }
             }
@@ -178,71 +163,18 @@ public class MetaTweaks implements ModInitializer {
             return true;
         });
 
-        /*
-         * Use block callback (right-click on blocks):
-         * - Proactively denies usage of certain grief-prone items (spawn eggs, buckets, boats, tridents, F&S, etc.) and logs usage attempts.
-         * - Blacklisted blocks/items require metatweaks.bypass before plot checks apply.
-         */
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-
-
-            if (player.getMainHandStack().getItem() instanceof SpawnEggItem) {
-                Log.info(LogCategory.LOG, "Spawn egg used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof MinecartItem) {
-                Log.info(LogCategory.LOG, "Minecart used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof BucketItem) {
-                Log.info(LogCategory.LOG, "Bucket used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof FlintAndSteelItem) {
-                Log.info(LogCategory.LOG, "Flint and Steel used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof TridentItem) {
-                Log.info(LogCategory.LOG, "Trident used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof BoatItem) {
-                Log.info(LogCategory.LOG, "Boat used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof EggItem) {
-                Log.info(LogCategory.LOG, "Egg used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof MilkBucketItem) {
-                Log.info(LogCategory.LOG, "Milk Bucket used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof ThrowablePotionItem) {
-                Log.info(LogCategory.LOG, "Throwable Potion used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()) + " by " + player.getName().getString());
-                return ActionResult.FAIL;
-            }
+            ItemStack stack = player.getStackInHand(hand);
 
             if (player instanceof ServerPlayerEntity serverPlayer) {
-                Identifier itemId = Registries.ITEM.getId(player.getStackInHand(hand).getItem());
-                if (!BlockBlacklist.isItemUseAllowed(serverPlayer, itemId)) {
+                Identifier itemId = Registries.ITEM.getId(stack.getItem());
+                if (!InteractionGuard.canUseItem(serverPlayer, itemId)) {
                     return ActionResult.FAIL;
                 }
                 Identifier blockId = Registries.BLOCK.getId(world.getBlockState(hitResult.getBlockPos()).getBlock());
-                if (!BlockBlacklist.isBlockInteractionAllowed(serverPlayer, blockId)) {
+                if (!InteractionGuard.canInteractBlock(serverPlayer, blockId)) {
                     return ActionResult.FAIL;
                 }
-            }
-
-            if (player instanceof ServerPlayerEntity serverPlayer) {
                 return PlotBuildGuard.canBuildAt(
                         serverPlayer,
                         serverPlayer.getServerWorld().getRegistryKey(),
@@ -255,65 +187,17 @@ public class MetaTweaks implements ModInitializer {
             return isBlockProtectedAgainstUseAction(player, world, hand, hitResult) ? ActionResult.FAIL : ActionResult.PASS;
         });
 
-        /*
-         * Use entity callback (right-click on entities):
-         * - Denies use of grief-prone items and logs attempts, similar to block use.
-         * - Requires metatweaks.protection for entity use; blacklisted items require metatweaks.bypass.
-         */
+
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            ItemStack stack = player.getStackInHand(hand);
 
-
-            if (player.getMainHandStack().getItem() instanceof SpawnEggItem) {
-                Log.info(LogCategory.LOG, "Spawn egg used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof MinecartItem) {
-                Log.info(LogCategory.LOG, "Minecart used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof BucketItem) {
-                Log.info(LogCategory.LOG, "Bucket used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof FlintAndSteelItem) {
-                Log.info(LogCategory.LOG, "Flint and Steel used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof TridentItem) {
-                Log.info(LogCategory.LOG, "Trident used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof BoatItem) {
-                Log.info(LogCategory.LOG, "Boat used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof EggItem) {
-                Log.info(LogCategory.LOG, "Egg used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof MilkBucketItem) {
-                Log.info(LogCategory.LOG, "Milk Bucket used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
-
-            if (player.getMainHandStack().getItem() instanceof ThrowablePotionItem) {
-                Log.info(LogCategory.LOG, "Throwable Potion used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return ActionResult.FAIL;
-            }
             if (!hasPermission(player, "metatweaks.protection")) {
                 return ActionResult.FAIL;
             }
 
             if (player instanceof ServerPlayerEntity serverPlayer) {
-                Identifier itemId = Registries.ITEM.getId(player.getStackInHand(hand).getItem());
-                if (!BlockBlacklist.isItemUseAllowed(serverPlayer, itemId)) {
+                Identifier itemId = Registries.ITEM.getId(stack.getItem());
+                if (!InteractionGuard.canUseItem(serverPlayer, itemId)) {
                     return ActionResult.FAIL;
                 }
             }
@@ -321,80 +205,25 @@ public class MetaTweaks implements ModInitializer {
             return ActionResult.PASS;
         });
 
-        /*
-         * Use item callback (right-click in air):
-         * - Allows Patchouli guide books to be opened normally.
-         * - Denies various grief-prone items (spawn eggs, buckets, boats, tridents, F&S, throwable potions, etc.).
-         * - Blacklisted items require metatweaks.bypass before plot checks apply.
-         */
+
         UseItemCallback.EVENT.register((player, world, hand) -> {
+            ItemStack stack = player.getStackInHand(hand);
 
-
-            if (Registries.ITEM.getId(player.getStackInHand(hand).getItem()).toString().startsWith("patchouli:guide_book")) {
-                return TypedActionResult.pass(player.getStackInHand(hand));
-            }
-
-            if (player.getMainHandStack().getItem() instanceof SpawnEggItem) {
-                Log.info(LogCategory.LOG, "Spawn egg used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
-            }
-
-
-            if (player.getMainHandStack().getItem() instanceof MinecartItem) {
-                Log.info(LogCategory.LOG, "Minecart used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
-            }
-
-            if (player.getMainHandStack().getItem() instanceof BucketItem) {
-                Log.info(LogCategory.LOG, "Bucket used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
-            }
-
-
-            if (player.getMainHandStack().getItem() instanceof FlintAndSteelItem) {
-                Log.info(LogCategory.LOG, "Flint and Steel used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
-            }
-
-            if (player.getMainHandStack().getItem() instanceof TridentItem) {
-                Log.info(LogCategory.LOG, "Trident used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
-            }
-
-            if (player.getMainHandStack().getItem() instanceof BoatItem) {
-                Log.info(LogCategory.LOG, "Boat used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
-            }
-
-            if (player.getMainHandStack().getItem() instanceof EggItem) {
-                Log.info(LogCategory.LOG, "Egg used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
-            }
-
-            if (player.getMainHandStack().getItem() instanceof MilkBucketItem) {
-                Log.info(LogCategory.LOG, "Milk Bucket used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
-            }
-
-            if (player.getMainHandStack().getItem() instanceof ThrowablePotionItem) {
-                Log.info(LogCategory.LOG, "Throwable Potion used " + Registries.ITEM.getId(player.getStackInHand(hand).getItem()));
-                return TypedActionResult.fail(ItemStack.EMPTY);
+            if (Registries.ITEM.getId(stack.getItem()).toString().startsWith("patchouli:guide_book")) {
+                return TypedActionResult.pass(stack);
             }
 
             if (player instanceof ServerPlayerEntity serverPlayer) {
-                Identifier itemId = Registries.ITEM.getId(player.getStackInHand(hand).getItem());
-                if (!BlockBlacklist.isItemUseAllowed(serverPlayer, itemId)) {
+                Identifier itemId = Registries.ITEM.getId(stack.getItem());
+                if (!InteractionGuard.canUseItem(serverPlayer, itemId)) {
                     return TypedActionResult.fail(ItemStack.EMPTY);
                 }
-            }
-
-            if (player instanceof ServerPlayerEntity serverPlayer) {
                 return PlotBuildGuard.canBuildAt(
                         serverPlayer,
                         serverPlayer.getServerWorld().getRegistryKey(),
                         serverPlayer.getBlockPos()
                 ) == PlotBuildGuard.BuildCheckResult.ALLOW
-                        ? TypedActionResult.pass(player.getStackInHand(hand))
+                        ? TypedActionResult.pass(stack)
                         : TypedActionResult.fail(ItemStack.EMPTY);
             }
 

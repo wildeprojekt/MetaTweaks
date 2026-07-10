@@ -1,28 +1,41 @@
 {
-  "blocks": [
-    "create:mechanical_bearing",
-    "create:windmill_bearing",
-    "create:clockwork_bearing",
-    "create:mechanical_piston",
-    "create:sticky_mechanical_piston",
-    "create:rope_pulley",
-    "create:elevator_pulley",
-    "create:gantry_shaft",
-    "create:gantry_carriage",
-    "create:cart_assembler",
-    "create:deployer",
-    "create:mechanical_drill",
-    "create:mechanical_saw",
-    "create:mechanical_harvester",
-    "create:mechanical_plough",
-    "create:mechanical_arm",
-    "create:portable_storage_interface",
-    "create:schematicannon",
-    "create:schematic_table"
-  ],
-  "items": [
-    "create:super_glue",
-    "create:schematic",
-    "create:empty_schematic"
+  "blacklist": {
+    "blocks": [
+      "create:mechanical_bearing",
+      "create:windmill_bearing",
+      "create:clockwork_bearing",
+      "create:mechanical_piston",
+      "create:sticky_mechanical_piston",
+      "create:rope_pulley",
+      "create:elevator_pulley",
+      "create:gantry_shaft",
+      "create:gantry_carriage",
+      "create:cart_assembler",
+      "create:deployer",
+      "create:mechanical_drill",
+      "create:mechanical_saw",
+      "create:mechanical_harvester",
+      "create:mechanical_plough",
+      "create:mechanical_arm",
+      "create:portable_storage_interface",
+      "create:schematicannon",
+      "create:schematic_table"
+    ],
+    "items": [
+      "create:super_glue",
+      "create:schematic",
+      "create:empty_schematic"
+    ]
+  },
+  "hard-coded": [
+    "boats",
+    "spawn_egg",
+    "bucket",
+    "minecart",
+    "trident",
+    "egg",
+    "milk_bucket",
+    "throwable_potion",
+    "flint_and_steel"
   ]
 }

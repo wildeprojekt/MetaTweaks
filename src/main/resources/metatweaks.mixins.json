@@ -9,6 +9,7 @@
     "ChickenMixin",
     "ConcretePowderBlockMixin",
     "CreateFilteringBehaviourMixin",
+    "CreativeInventoryActionMixin",
     "CropGrowthMixin",
     "EggEntityMixin",
     "EndCrystalMixin",
