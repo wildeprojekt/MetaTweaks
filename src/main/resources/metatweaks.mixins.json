@@ -32,6 +32,7 @@
     "RespawnAnchorMixin",
     "SaplingGrowthMixin",
     "ServerPlayerEntity",
+    "SlotClickInventoryMixin",
     "SpreadableBlockMixin",
     "TNTMinecartMixin",
     "WaterFreezeMixin"

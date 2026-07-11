@@ -32,7 +32,7 @@ final class PlotBuildGuard {
         Location location = FabricUtil.adapt(GlobalPos.create(worldKey, pos));
         PlotArea area = location.getPlotArea();
         if (area == null) {
-            return MetaTweaks.hasPermission(player, "metatweaks.protection")
+            return MetaTweaks.hasPermission(player, "metatweaks.build")
                     ? BuildCheckResult.ALLOW
                     : BuildCheckResult.DENY;
         }

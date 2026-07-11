@@ -36,8 +36,6 @@ import java.util.function.Predicate;
 public final class InteractionGuard {
 
     private static final Gson GSON = new Gson();
-    private static final String BYPASS_PERMISSION = "metatweaks.bypass";
-    private static final String CREATE_PERMISSION = "metatweaks.create";
     private static final String CONFIG_RESOURCE = "/metatweaks/block-blacklist.json";
 
     private static final Set<Identifier> ALLOWED_FLUID_BUCKETS = Set.of(
@@ -68,6 +66,10 @@ public final class InteractionGuard {
     }
 
     static void load() {
+        reload();
+    }
+
+    public static boolean reload() {
         Path configDir = FabricLoader.getInstance().getConfigDir().resolve("metatweaks");
         Path configFile = configDir.resolve("block-blacklist.json");
 
@@ -77,8 +79,7 @@ public final class InteractionGuard {
                 try (InputStream defaultConfig = InteractionGuard.class.getResourceAsStream(CONFIG_RESOURCE)) {
                     if (defaultConfig == null) {
                         Log.warn(LogCategory.LOG, "MetaTweaks: default interaction config resource missing");
-                        resetToEmpty();
-                        return;
+                        return false;
                     }
                     Files.copy(defaultConfig, configFile);
                     Log.info(LogCategory.LOG, "MetaTweaks: created default interaction config at " + configFile);
@@ -92,25 +93,36 @@ public final class InteractionGuard {
                 }
 
                 JsonObject blacklist = root.has("blacklist") ? root.getAsJsonObject("blacklist") : root;
-                blacklistedBlocks = parseIdSet(blacklist.getAsJsonArray("blocks"), "blacklist.blocks");
-                blacklistedItems = parseIdSet(blacklist.getAsJsonArray("items"), "blacklist.items");
-                activeHardCodedGroups = parseGroupSet(root.getAsJsonArray("hard-coded"));
+                Set<Identifier> newBlocks = parseIdSet(blacklist.getAsJsonArray("blocks"), "blacklist.blocks");
+                Set<Identifier> newItems = parseIdSet(blacklist.getAsJsonArray("items"), "blacklist.items");
+                Set<String> newGroups = parseGroupSet(root.getAsJsonArray("hard-coded"));
+
+                blacklistedBlocks = newBlocks;
+                blacklistedItems = newItems;
+                activeHardCodedGroups = newGroups;
 
                 Log.info(LogCategory.LOG, "MetaTweaks: loaded interaction config — "
                         + blacklistedBlocks.size() + " blacklisted blocks, "
                         + blacklistedItems.size() + " blacklisted items, "
                         + activeHardCodedGroups.size() + " hard-coded groups");
+                return true;
             }
         } catch (IOException | JsonParseException e) {
-            Log.error(LogCategory.LOG, "MetaTweaks: failed to load interaction config, using empty rules", e);
-            resetToEmpty();
+            Log.error(LogCategory.LOG, "MetaTweaks: failed to reload interaction config, keeping previous rules", e);
+            return false;
         }
     }
 
-    private static void resetToEmpty() {
-        blacklistedBlocks = Collections.emptySet();
-        blacklistedItems = Collections.emptySet();
-        activeHardCodedGroups = Collections.emptySet();
+    public static int getBlacklistedBlockCount() {
+        return blacklistedBlocks.size();
+    }
+
+    public static int getBlacklistedItemCount() {
+        return blacklistedItems.size();
+    }
+
+    public static int getHardCodedGroupCount() {
+        return activeHardCodedGroups.size();
     }
 
     private static Set<Identifier> parseIdSet(JsonArray array, String fieldName) {
@@ -174,21 +186,21 @@ public final class InteractionGuard {
         Item item = Registries.ITEM.get(itemId);
 
         if (isHardCodedRestricted(item)) {
-            return MetaTweaks.hasPermission(player, BYPASS_PERMISSION);
+            return MetaTweaks.hasBypass(player);
         }
 
         if (isCreateNamespace(itemId)) {
-            if (!MetaTweaks.hasPermission(player, CREATE_PERMISSION)) {
+            if (!MetaTweaks.hasCreate(player)) {
                 return false;
             }
             if (isItemBlacklisted(itemId) || isBlockBlacklisted(itemId)) {
-                return MetaTweaks.hasPermission(player, BYPASS_PERMISSION);
+                return MetaTweaks.hasBypass(player);
             }
             return true;
         }
 
         if (isItemBlacklisted(itemId) || isBlockBlacklisted(itemId)) {
-            return MetaTweaks.hasPermission(player, BYPASS_PERMISSION);
+            return MetaTweaks.hasBypass(player);
         }
 
         return true;
@@ -196,17 +208,17 @@ public final class InteractionGuard {
 
     public static boolean canInteractBlock(ServerPlayerEntity player, Identifier blockId) {
         if (isCreateNamespace(blockId)) {
-            if (!MetaTweaks.hasPermission(player, CREATE_PERMISSION)) {
+            if (!MetaTweaks.hasCreate(player)) {
                 return false;
             }
             if (isBlockBlacklisted(blockId)) {
-                return MetaTweaks.hasPermission(player, BYPASS_PERMISSION);
+                return MetaTweaks.hasBypass(player);
             }
             return true;
         }
 
         if (isBlockBlacklisted(blockId)) {
-            return MetaTweaks.hasPermission(player, BYPASS_PERMISSION);
+            return MetaTweaks.hasBypass(player);
         }
 
         return true;

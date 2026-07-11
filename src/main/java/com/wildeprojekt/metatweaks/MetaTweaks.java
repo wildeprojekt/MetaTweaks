@@ -108,12 +108,10 @@ public class MetaTweaks implements ModInitializer {
         });
 
         /*
-         * Register /metatweaks commands on dedicated servers only.
+         * Register MetaTweaks commands.
          */
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            if (environment.dedicated) {
-                MetaTweaksCommandHandler.MetaTweaksCommands(dispatcher, registryAccess, environment);
-            }
+            MetaTweaksCommandHandler.MetaTweaksCommands(dispatcher, registryAccess, environment);
         });
 
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
@@ -152,11 +150,11 @@ public class MetaTweaks implements ModInitializer {
         });
 
         /*
-         * Block break: general protection gate. Requires metatweaks.protection to break any block.
+         * Block break: general build gate. Requires metatweaks.build to break any block.
          */
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             if (player instanceof ServerPlayerEntity serverPlayer) {
-                if (!hasPermission(serverPlayer, "metatweaks.protection")) {
+                if (!hasPermission(serverPlayer, "metatweaks.build")) {
                     return false;
                 }
             }
@@ -191,7 +189,7 @@ public class MetaTweaks implements ModInitializer {
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             ItemStack stack = player.getStackInHand(hand);
 
-            if (!hasPermission(player, "metatweaks.protection")) {
+            if (!hasPermission(player, "metatweaks.build")) {
                 return ActionResult.FAIL;
             }
 
@@ -289,10 +287,23 @@ public class MetaTweaks implements ModInitializer {
 
         return false;
     }
+    public static boolean hasBypass(ServerPlayerEntity player) {
+        return hasPermission(player, "metatweaks.bypass");
+    }
+
+
+    public static boolean hasCreate(ServerPlayerEntity player) {
+        return hasPermission(player, "metatweaks.create") || hasBypass(player);
+    }
+
+
+    public static boolean hasAllowWaterSpread(ServerPlayerEntity player) {
+        return hasPermission(player, "metatweaks.allowwaterspread") || hasBypass(player);
+    }
 
     /**
      * Determines whether a block use action should be treated as protected/denied for a player.
-     * Allows bare-hand interaction with doors/gates; otherwise requires metatweaks.protection.
+     * Allows bare-hand interaction with doors/gates; otherwise requires metatweaks.build.
      *
      * @param player    the player
      * @param world     the world
@@ -305,6 +316,6 @@ public class MetaTweaks implements ModInitializer {
         var blockName = Registries.BLOCK.getId(world.getBlockState(hitResult.getBlockPos()).getBlock()).toString().toLowerCase();
 
         if (isHandEmpty(player) && (blockName.endsWith("_door") || blockName.endsWith("_gate"))) return false;
-        return !hasPermission(player, "metatweaks.protection");
+        return !hasPermission(player, "metatweaks.build");
     }
 }

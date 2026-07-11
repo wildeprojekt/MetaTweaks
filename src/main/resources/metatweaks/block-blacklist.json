@@ -1,8 +1,35 @@
 {
   "blacklist": {
     "blocks": [
+      "minecraft:dispenser",
+      "conquest:mesoamerican_dispenser",
+      "conquest:sandstone_dispenser",
+      "conquest:metal_dispenser",
+      "create:track_station",
+      "create:sticky_mechanical_piston",
+      "create:rope_pulley",
+      "create:elevator_pulley",
+      "create:cart_assembler",
+      "create:deployer",
+      "create:mechanical_drill",
+      "create:mechanical_saw",
+      "create:mechanical_harvester",
+      "create:mechanical_plough",
+      "create:portable_storage_interface",
+      "create:schematicannon",
+      "create:schematic_table"
     ],
     "items": [
+      "create:schematic",
+      "create:empty_schematic",
+      "create:handheld_worldshaper",
+      "create:wand_of_symmetry",
+      "minecraft:tadpole_bucket",
+      "minecraft:cod_bucket",
+      "minecraft:tropical_fish_bucket",
+      "minecraft:salmon_bucket",
+      "minecraft:pufferfish_bucket",
+      "minecraft:axolotl_bucket"
     ]
   },
   "hard-coded": [

@@ -1,11 +1,10 @@
 package com.wildeprojekt.metatweaks;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.sk89q.worldedit.fabric.FabricWorldEdit;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.Texts;
@@ -14,40 +13,68 @@ import net.minecraft.util.Formatting;
 /**
  * Registers and implements commands for the MetaTweaks mod.
  * Commands:
- * - /allowwaterspread: Toggles custom water spread behavior (permission: metatweaks.allowwaterspread).
+ * - /metatweaks allowwaterspread: Toggles water spread (metatweaks.allowwaterspread or bypass).
+ * - /metatweaks reload: Reloads block-blacklist.json (metatweaks.bypass).
  */
 public class MetaTweaksCommandHandler {
 
+    private static boolean hasBypassPermission(ServerCommandSource source) {
+        if (source.getPlayer() instanceof ServerPlayerEntity) {
+            return MetaTweaks.hasBypass((ServerPlayerEntity) source.getPlayer());
+        }
+        return source.hasPermissionLevel(2);
+    }
+
+    private static boolean hasAllowWaterSpreadPermission(ServerCommandSource source) {
+        if (source.getPlayer() instanceof ServerPlayerEntity) {
+            return MetaTweaks.hasAllowWaterSpread((ServerPlayerEntity) source.getPlayer());
+        }
+        return source.hasPermissionLevel(2);
+    }
+
     /**
-     * Registers all MetaTweaks commands on the provided dispatcher. Only called on dedicated servers.
-     * @param dispatcher Brigadier command dispatcher
-     * @param registryAccess registry access
-     * @param environment registration environment
+     * Registers all MetaTweaks commands on the provided dispatcher.
      */
-    public static void MetaTweaksCommands(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment)
-    {
-
-        FabricWorldEdit.inst.getPermissionsProvider().registerPermission("metatweaks.allowwaterspread");
-
-        //register allowwaterspread
-        dispatcher.register(CommandManager.literal("allowwaterspread").requires(serverCommandSource -> {
-                            try {
-                                return FabricWorldEdit.inst.getPermissionsProvider().hasPermission(serverCommandSource.getPlayerOrThrow(), "metatweaks.allowwaterspread");
-                            } catch (CommandSyntaxException e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
+    public static void MetaTweaksCommands(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+        dispatcher.register(CommandManager.literal("metatweaks")
+                .then(CommandManager.literal("allowwaterspread")
+                        .requires(MetaTweaksCommandHandler::hasAllowWaterSpreadPermission)
+                        .executes(context -> toggleWaterSpread(context.getSource())))
+                .then(CommandManager.literal("reload")
+                        .requires(MetaTweaksCommandHandler::hasBypassPermission)
                         .executes(context -> {
                             ServerCommandSource source = context.getSource();
-                            if (MetaTweaks.waterSpreaders.contains(source.getPlayer())) {
-                                MetaTweaks.waterSpreaders.remove(source.getPlayer());
-                                source.sendMessage(Texts.setStyleIfAbsent(Text.literal("Water spread disabled."), Style.EMPTY.withFormatting(Formatting.RED)));
-                            } else {
-                                MetaTweaks.waterSpreaders.add(source.getPlayer());
-                                source.sendMessage(Texts.setStyleIfAbsent(Text.literal("Water spread enabled."), Style.EMPTY.withFormatting(Formatting.GREEN)));
+                            if (!InteractionGuard.reload()) {
+                                source.sendMessage(Texts.setStyleIfAbsent(
+                                        Text.literal("Failed to reload block-blacklist.json — check server log."),
+                                        Style.EMPTY.withFormatting(Formatting.RED)));
+                                return 0;
                             }
+                            RestrictedItemEnforcer.enforceAll(source.getServer());
+                            source.sendMessage(Texts.setStyleIfAbsent(
+                                    Text.literal("Reloaded block-blacklist.json: "
+                                            + InteractionGuard.getBlacklistedBlockCount() + " blocks, "
+                                            + InteractionGuard.getBlacklistedItemCount() + " items, "
+                                            + InteractionGuard.getHardCodedGroupCount() + " hard-coded groups."),
+                                    Style.EMPTY.withFormatting(Formatting.GREEN)));
                             return 1;
                         })
+                )
         );
+    }
+
+    private static int toggleWaterSpread(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            return 0;
+        }
+        if (MetaTweaks.waterSpreaders.contains(player)) {
+            MetaTweaks.waterSpreaders.remove(player);
+            source.sendMessage(Texts.setStyleIfAbsent(Text.literal("Water spread disabled."), Style.EMPTY.withFormatting(Formatting.RED)));
+        } else {
+            MetaTweaks.waterSpreaders.add(player);
+            source.sendMessage(Texts.setStyleIfAbsent(Text.literal("Water spread enabled."), Style.EMPTY.withFormatting(Formatting.GREEN)));
+        }
+        return 1;
     }
 }

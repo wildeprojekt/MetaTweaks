@@ -1,5 +1,6 @@
 package com.wildeprojekt.metatweaks.mixin;
 
+import com.wildeprojekt.metatweaks.RestrictedItemEnforcer;
 import com.wildeprojekt.metatweaks.InteractionGuard;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
@@ -27,5 +28,10 @@ public class CreativeInventoryActionMixin {
         if (!InteractionGuard.canHoldItem(player, Registries.ITEM.getId(stack.getItem()))) {
             ci.cancel();
         }
+    }
+
+    @Inject(method = "onCreativeInventoryAction", at = @At("TAIL"))
+    private void metatweaks$enforceAfterCreativeAction(CreativeInventoryActionC2SPacket packet, CallbackInfo ci) {
+        RestrictedItemEnforcer.enforce(player);
     }
 }
