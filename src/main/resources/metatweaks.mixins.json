@@ -9,8 +9,6 @@
     "ChickenMixin",
     "ConcretePowderBlockMixin",
     "CreateFilteringBehaviourMixin",
-    "CreativeInventoryActionMixin",
-    "CreativeInventoryActionC2SPacketAccessor",
     "CropGrowthMixin",
     "EggEntityMixin",
     "EndCrystalMixin",
@@ -31,8 +29,7 @@
     "ProjectileEntityMixin",
     "RespawnAnchorMixin",
     "SaplingGrowthMixin",
-    "ServerPlayerEntity",
-    "SlotClickInventoryMixin",
+    "ServerPlayerEntityMixin",
     "SpreadableBlockMixin",
     "TNTMinecartMixin",
     "WaterFreezeMixin"

@@ -40,7 +40,6 @@ public class MetaTweaks implements ModInitializer {
         waterSpreaders = new HashSet<>();
         paintingBreakers = new ArrayList<>();
         InteractionGuard.load();
-        RestrictedItemEnforcer.register();
         /*
          * Projectile entity hit handling.
          * - Default: deny projectile collisions with entities (returns FAIL) to prevent grief (e.g., arrows breaking frames).
