@@ -7,6 +7,7 @@
     "AbstractBlockMixin",
     "CarvedPumpkinBlockMixin",
     "ChickenMixin",
+    "CommandManagerMixin",
     "ConcretePowderBlockMixin",
     "CreateFilteringBehaviourMixin",
     "CropGrowthMixin",
@@ -31,6 +32,7 @@
     "SaplingGrowthMixin",
     "ServerPlayerEntityMixin",
     "SpreadableBlockMixin",
+    "TeleportCommandMixin",
     "TNTMinecartMixin",
     "WaterFreezeMixin"
   ],

@@ -1,5 +1,9 @@
 package com.wildeprojekt.metatweaks;
 
+import com.sk89q.worldedit.IncompleteRegionException;
+import com.sk89q.worldedit.LocalSession;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.fabric.FabricAdapter;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
@@ -16,6 +20,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import xyz.nucleoid.stimuli.Stimuli;
 import xyz.nucleoid.stimuli.event.projectile.ProjectileHitEvent;
@@ -298,6 +303,42 @@ public class MetaTweaks implements ModInitializer {
 
     public static boolean hasAllowWaterSpread(ServerPlayerEntity player) {
         return hasPermission(player, "metatweaks.allowwaterspread") || hasBypass(player);
+    }
+
+    /**
+     * Returns true if the player has a complete WorldEdit selection (both corners set).
+     */
+    public static boolean hasCompleteWorldEditSelection(ServerPlayerEntity player) {
+        LocalSession session = getWorldEditSession(player);
+        if (session == null) {
+            return false;
+        }
+        try {
+            session.getSelection();
+            return true;
+        } catch (IncompleteRegionException e) {
+            return false;
+        }
+    }
+
+    public static boolean isWaterSpreadAllowedAt(BlockPos pos) {
+        for (ServerPlayerEntity player : waterSpreaders) {
+            LocalSession session = getWorldEditSession(player);
+            if (session == null) {
+                continue;
+            }
+            try {
+                if (session.getSelection().contains(FabricAdapter.adapt(pos))) {
+                    return true;
+                }
+            } catch (IncompleteRegionException ignored) {
+            }
+        }
+        return false;
+    }
+
+    private static LocalSession getWorldEditSession(ServerPlayerEntity player) {
+        return WorldEdit.getInstance().getSessionManager().findByName(player.getGameProfile().getName());
     }
 
     /**

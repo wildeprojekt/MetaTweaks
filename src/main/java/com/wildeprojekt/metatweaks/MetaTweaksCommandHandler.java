@@ -72,8 +72,16 @@ public class MetaTweaksCommandHandler {
             MetaTweaks.waterSpreaders.remove(player);
             source.sendMessage(Texts.setStyleIfAbsent(Text.literal("Water spread disabled."), Style.EMPTY.withFormatting(Formatting.RED)));
         } else {
+            if (!MetaTweaks.hasCompleteWorldEditSelection(player)) {
+                source.sendMessage(Texts.setStyleIfAbsent(
+                        Text.literal("Set a WorldEdit selection (//pos1 and //pos2) first."),
+                        Style.EMPTY.withFormatting(Formatting.RED)));
+                return 0;
+            }
             MetaTweaks.waterSpreaders.add(player);
-            source.sendMessage(Texts.setStyleIfAbsent(Text.literal("Water spread enabled."), Style.EMPTY.withFormatting(Formatting.GREEN)));
+            source.sendMessage(Texts.setStyleIfAbsent(
+                    Text.literal("Water spread enabled inside your WorldEdit selection."),
+                    Style.EMPTY.withFormatting(Formatting.GREEN)));
         }
         return 1;
     }
