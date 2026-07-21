@@ -5,9 +5,6 @@ import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.Texts;
 import net.minecraft.util.Formatting;
 
 /**
@@ -45,18 +42,18 @@ public class MetaTweaksCommandHandler {
                         .executes(context -> {
                             ServerCommandSource source = context.getSource();
                             if (!InteractionGuard.reload()) {
-                                source.sendMessage(Texts.setStyleIfAbsent(
-                                        Text.literal("Failed to reload block-blacklist.json — check server log."),
-                                        Style.EMPTY.withFormatting(Formatting.RED)));
+                                CommandMessages.send(source,
+                                        "Failed to reload block-blacklist.json — check server log.",
+                                        Formatting.RED);
                                 return 0;
                             }
                             RestrictedItemEnforcer.enforceAll(source.getServer());
-                            source.sendMessage(Texts.setStyleIfAbsent(
-                                    Text.literal("Reloaded block-blacklist.json: "
+                            CommandMessages.send(source,
+                                    "Reloaded block-blacklist.json: "
                                             + InteractionGuard.getBlacklistedBlockCount() + " blocks, "
                                             + InteractionGuard.getBlacklistedItemCount() + " items, "
-                                            + InteractionGuard.getHardCodedGroupCount() + " hard-coded groups."),
-                                    Style.EMPTY.withFormatting(Formatting.GREEN)));
+                                            + InteractionGuard.getHardCodedGroupCount() + " hard-coded groups.",
+                                    Formatting.GREEN);
                             return 1;
                         })
                 )
@@ -70,18 +67,18 @@ public class MetaTweaksCommandHandler {
         }
         if (MetaTweaks.waterSpreaders.contains(player)) {
             MetaTweaks.waterSpreaders.remove(player);
-            source.sendMessage(Texts.setStyleIfAbsent(Text.literal("Water spread disabled."), Style.EMPTY.withFormatting(Formatting.RED)));
+            CommandMessages.send(source, "Water spread disabled.", Formatting.RED);
         } else {
             if (!MetaTweaks.hasCompleteWorldEditSelection(player)) {
-                source.sendMessage(Texts.setStyleIfAbsent(
-                        Text.literal("Set a WorldEdit selection (//pos1 and //pos2) first."),
-                        Style.EMPTY.withFormatting(Formatting.RED)));
+                CommandMessages.send(source,
+                        "Set a WorldEdit selection (//pos1 and //pos2) first.",
+                        Formatting.RED);
                 return 0;
             }
             MetaTweaks.waterSpreaders.add(player);
-            source.sendMessage(Texts.setStyleIfAbsent(
-                    Text.literal("Water spread enabled inside your WorldEdit selection."),
-                    Style.EMPTY.withFormatting(Formatting.GREEN)));
+            CommandMessages.send(source,
+                    "Water spread enabled inside your WorldEdit selection.",
+                    Formatting.GREEN);
         }
         return 1;
     }

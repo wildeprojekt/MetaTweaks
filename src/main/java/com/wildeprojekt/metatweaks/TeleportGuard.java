@@ -3,9 +3,6 @@ package com.wildeprojekt.metatweaks;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.Texts;
 import net.minecraft.util.Formatting;
 
 import java.util.Collection;
@@ -61,8 +58,6 @@ public final class TeleportGuard {
     }
 
     private static void deny(ServerCommandSource source, String message) {
-        source.sendMessage(Texts.setStyleIfAbsent(
-                Text.literal(message),
-                Style.EMPTY.withFormatting(Formatting.RED)));
+        CommandMessages.send(source, message, Formatting.RED);
     }
 }
