@@ -1,0 +1,9 @@
+{
+  "metatweaks.command.reload.failed": "§r§f\ue690§cFailed to reload block-blacklist.json",
+  "metatweaks.command.reload.success": "§r§f\ue690§aReloaded block-blacklist.json: %s blocks, %s items, %s hard-coded groups.",
+  "metatweaks.command.waterspread.disabled": "§r§f\ue690§cWater spread disabled.",
+  "metatweaks.command.waterspread.no_selection": "§r§f\ue690§cSet a WorldEdit selection (//pos1 and //pos2) first.",
+  "metatweaks.command.waterspread.enabled": "§r§f\ue690§aWater spread enabled inside your WorldEdit selection.",
+  "metatweaks.command.teleport.no_selectors": "§r§f\ue690§cSelectors (@) are not allowed.",
+  "metatweaks.command.teleport.self_only": "§r§f\ue690§cYou can only teleport yourself."
+}

@@ -3,7 +3,6 @@ package com.wildeprojekt.metatweaks;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Formatting;
 
 import java.util.Collection;
 
@@ -43,21 +42,17 @@ public final class TeleportGuard {
 
         String command = CURRENT_COMMAND.get();
         if (command != null && command.indexOf('@') >= 0) {
-            deny(source, "Selectors (@) are not allowed.");
+            CommandMessages.send(source, "metatweaks.command.teleport.no_selectors");
             return false;
         }
 
         Entity self = source.getEntity();
         for (Entity target : targets) {
             if (target != self) {
-                deny(source, "You can only teleport yourself.");
+                CommandMessages.send(source, "metatweaks.command.teleport.self_only");
                 return false;
             }
         }
         return true;
-    }
-
-    private static void deny(ServerCommandSource source, String message) {
-        CommandMessages.send(source, message, Formatting.RED);
     }
 }
